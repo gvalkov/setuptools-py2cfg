@@ -67,7 +67,7 @@ containing a ``setup.py``. For example,  given the following ``setup.py``:
   if __name__ == '__main__':
       setup(**kw)
 
-Running ``setuptools-py2cfg`` would print:
+Running ``setuptools-py2cfg.py`` would print:
 
 .. code-block:: ini
 
