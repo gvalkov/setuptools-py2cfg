@@ -9,56 +9,142 @@ import setuptools
 import os, io, re, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, FileType
 from pathlib import Path
+from functools import partial
 from collections import defaultdict
 from unittest.mock import Mock
 from configparser import ConfigParser
 
 
-#------------------------------------------------------------------------------
-# Handle command-line arguments.
-#------------------------------------------------------------------------------
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter, description=__doc__)
-parser.add_argument(
-    '-t', '--dangling-list-threshold', default=40, metavar='int', type=int,
-    help='lists longer than this many characters are converted to a dangling list')
-parser.add_argument(
-    '-i', '--dangling-list-indent', default=4, metavar='int', type=int,
-    help='number of spaces to use when indenting dangling lists')
-parser.add_argument(
-    '-a', '--always-use-dangling-lists', action='store_const', const=0, default=False,
-    help='use dangling lists everywhere', dest='dangling_list_threshold')
-parser.add_argument(
-    '-n', '--never-use-dangling-lists', action='store_const', const=99999, default=False,
-    help='use dangling lists everywhere', dest='dangling_list_threshold')
-parser.add_argument(
-    'setup_py', type=FileType('r'), default='./setup.py', nargs='?', metavar='path',
-    help='path to setup.py file')
-args = parser.parse_args()
+def parseargs(args=None):
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter, description=__doc__)
+
+    parser.add_argument(
+        '-t', '--dangling-list-threshold', default=40, metavar='int', type=int,
+        help='lists longer than this many characters are converted to a dangling list')
+    parser.add_argument(
+        '-i', '--dangling-list-indent', default=4, metavar='int', type=int,
+        help='number of spaces to use when indenting dangling lists')
+    parser.add_argument(
+        '-a', '--always-use-dangling-lists', action='store_const', const=0, default=False,
+        help='use dangling lists everywhere', dest='dangling_list_threshold')
+    parser.add_argument(
+        '-n', '--never-use-dangling-lists', action='store_const', const=99999, default=False,
+        help='never use dangling lists', dest='dangling_list_threshold')
+    parser.add_argument(
+        'setup_py', type=FileType('r'), default='./setup.py', nargs='?', metavar='path',
+        help='path to setup.py file')
+
+    return parser.parse_args(args)
 
 
-#------------------------------------------------------------------------------
-# Mock all functions in the setuptools module.
-#------------------------------------------------------------------------------
-sys.modules['setuptools'] = Mock(spec=setuptools)
-import setuptools
+def execsetup(setup_py):
+    # Mock all function in the setuptools module.
+    global setuptools
+    sys.modules['setuptools'] = Mock(spec=setuptools)
+    import setuptools
 
-# Evaluate setup.py with our mocked setuptools and get kwargs given to setup().
-cwd = Path.cwd()
-setuppy_dir = Path(args.setup_py.name).parent
-try:
-    os.chdir(str(setuppy_dir))
-    exec(args.setup_py.read())
-finally:
-    os.chdir(str(cwd))
+    # Evaluate setup.py with our mocked setuptools and get kwargs given to setup().
+    cwd = Path.cwd()
+    setuppy_dir = Path(setup_py.name).parent
+    try:
+        os.chdir(str(setuppy_dir))
+        exec(setup_py.read())
+    finally:
+        os.chdir(str(cwd))
 
-setup = setuptools.setup.call_args[1]
+    return setuptools.setup.call_args[1], setuppy_dir
 
 
-#------------------------------------------------------------------------------
-# Helper functions. Note that the names 'list-semi' and 'list-comma' come
-# from the setuptools specification and I find it easier to keep those names.
-#------------------------------------------------------------------------------
-def find_file(content):
+def main(args=None):
+    args = parseargs(args)
+    setup, setuppy_dir = execsetup(args.setup_py)
+    metadata, options, sections = py2cfg(setup, setuppy_dir, args.dangling_list_threshold)
+
+    # Dump and reformat sections to ini format.
+    config = ConfigParser(interpolation=None)
+    if metadata:
+        config['metadata'] = metadata
+    if options:
+        config['options'] = options
+    for section, value in sections.items():
+        config[section] = value
+
+    buf = io.StringIO()
+    config.write(buf)
+
+    # Convert leading tabs to spaces.
+    return re.sub('^(\t+)', ' ' * args.dangling_list_indent, buf.getvalue(), 0, re.MULTILINE)
+
+
+def py2cfg(setup, setuppy_dir, dangling_list_threshold):
+    # Wrap these functions for convenience.
+    global find_file, list_comma, list_semi
+    find_file = partial(find_file, setuppy_dir=setuppy_dir)
+    list_comma = partial(list_comma, threshold=dangling_list_threshold)
+    list_semi = partial(list_semi, threshold=dangling_list_threshold)
+
+    metadata = {}
+    setif(setup, metadata, 'name')
+    setif(setup, metadata, 'version')
+    setif(setup, metadata, 'author')
+    setif(setup, metadata, 'author_email')
+    setif(setup, metadata, 'maintainer')
+    setif(setup, metadata, 'maintainer_email')
+    setif(setup, metadata, 'license', find_file)
+    setif(setup, metadata, 'description')
+    setif(setup, metadata, 'keywords', list_comma)
+    setif(setup, metadata, 'url')
+    setif(setup, metadata, 'download_url')
+    setif(setup, metadata, 'long_description', find_file)
+    setif(setup, metadata, 'long_description_content_type')
+    setif(setup, metadata, 'classifiers', join_lines)
+    setif(setup, metadata, 'platforms', list_comma)
+    setif(setup, metadata, 'provides', list_comma)
+    setif(setup, metadata, 'requires', list_comma)
+    setif(setup, metadata, 'obsoletes', list_comma)
+
+    options = {}
+    setif(setup, options, 'py_modules', list_comma)
+    setif(setup, options, 'packages', find_or_list_comma)
+    setif(setup, options, 'zip_safe')
+    setif(setup, options, 'setup_requires', list_semi)
+    setif(setup, options, 'install_requires', list_semi)
+    setif(setup, options, 'include_package_data')
+    setif(setup, options, 'python_requires')
+    setif(setup, options, 'use_2to3')
+    setif(setup, options, 'use_2to3_fixers', list_comma)
+    setif(setup, options, 'use_2to3_exclude_fixers', list_comma)
+    setif(setup, options, 'convert_2to3_doctest', list_comma)
+    setif(setup, options, 'scripts', list_comma)
+    setif(setup, options, 'eager_resources', list_comma)
+    setif(setup, options, 'dependency_links', list_comma)
+    setif(setup, options, 'tests_require', list_semi)
+    setif(setup, options, 'include_package_data')
+    setif(setup, options, 'namespace_packages', list_comma)
+    setif(setup, options, 'include_package_data')
+
+    sections = defaultdict(dict)
+
+    entry_points = setup.get('entry_points')
+    if entry_points:
+        if isinstance(entry_points, dict):
+            sections['options.entry_points'] = extract_section(entry_points)
+        else:
+            pass  # TODO: Handle entry_points in ini syntax.
+
+    if 'extras_require' in setup:
+        sections['options.extras_require'] = extract_section(setup['extras_require'])
+
+    if 'package_data' in setup:
+        sections['options.package_data'] = extract_section(setup['package_data'])
+
+    if 'exclude_package_data' in setup:
+        sections['options.exclude_package_data'] = extract_section(setup['exclude_package_data'])
+
+    return metadata, options, sections
+
+
+def find_file(content, setuppy_dir):
     '''
     Search for a file inside the setup.py directory matching the given text.
     Returns the original text if an exact match is not found.
@@ -82,12 +168,12 @@ def join_lines(seq):
     return '\n' + '\n'.join(seq)
 
 
-def list_semi(value, threshold=args.dangling_list_threshold):
+def list_semi(value, threshold):
     s = '; '.join(value)
     return join_lines(value) if len(s) > threshold else s
 
 
-def list_comma(value, threshold=args.dangling_list_threshold):
+def list_comma(value, threshold):
     ''''''
     value = value.split() if isinstance(value, str) else value
     s = ', '.join(value)
@@ -122,90 +208,5 @@ def extract_section(value):
         return {k: list_semi(ensure_list(v)) for k, v in value.items()}
 
 
-#------------------------------------------------------------------------------
-# Metadata
-#------------------------------------------------------------------------------
-metadata = {}
-setif(setup, metadata, 'name')
-setif(setup, metadata, 'version')
-setif(setup, metadata, 'author')
-setif(setup, metadata, 'author_email')
-setif(setup, metadata, 'maintainer')
-setif(setup, metadata, 'maintainer_email')
-setif(setup, metadata, 'license', find_file)
-setif(setup, metadata, 'description')
-setif(setup, metadata, 'keywords', list_comma)
-setif(setup, metadata, 'url')
-setif(setup, metadata, 'download_url')
-setif(setup, metadata, 'long_description', find_file)
-setif(setup, metadata, 'long_description_content_type')
-setif(setup, metadata, 'classifiers', join_lines)
-setif(setup, metadata, 'platforms', list_comma)
-setif(setup, metadata, 'provides', list_comma)
-setif(setup, metadata, 'requires', list_comma)
-setif(setup, metadata, 'obsoletes', list_comma)
-
-
-#------------------------------------------------------------------------------
-# Options.
-#------------------------------------------------------------------------------
-options = {}
-setif(setup, options, 'py_modules', list_comma)
-setif(setup, options, 'packages', find_or_list_comma)
-setif(setup, options, 'zip_safe')
-setif(setup, options, 'setup_requires', list_semi)
-setif(setup, options, 'install_requires', list_semi)
-setif(setup, options, 'include_package_data')
-setif(setup, options, 'python_requires')
-setif(setup, options, 'use_2to3')
-setif(setup, options, 'use_2to3_fixers', list_comma)
-setif(setup, options, 'use_2to3_exclude_fixers', list_comma)
-setif(setup, options, 'convert_2to3_doctest', list_comma)
-setif(setup, options, 'scripts', list_comma)
-setif(setup, options, 'eager_resources', list_comma)
-setif(setup, options, 'dependency_links', list_comma)
-setif(setup, options, 'tests_require', list_semi)
-setif(setup, options, 'include_package_data')
-setif(setup, options, 'namespace_packages', list_comma)
-setif(setup, options, 'include_package_data')
-
-
-#------------------------------------------------------------------------------
-# Additional sections.
-#------------------------------------------------------------------------------
-sections = defaultdict(dict)
-
-entry_points = setup.get('entry_points')
-if entry_points:
-    if isinstance(entry_points, dict):
-        sections['options.entry_points'] = extract_section(entry_points)
-    else:
-        pass  # TODO: Handle entry_points in ini syntax.
-
-if 'extras_require' in setup:
-    sections['options.extras_require'] = extract_section(setup['extras_require'])
-
-if 'package_data' in setup:
-    sections['options.package_data'] = extract_section(setup['package_data'])
-
-if 'exclude_package_data' in setup:
-    sections['options.exclude_package_data'] = extract_section(setup['exclude_package_data'])
-
-
-#------------------------------------------------------------------------------
-# Dump and reformat sections to ini format.
-#------------------------------------------------------------------------------
-config = ConfigParser(interpolation=None)
-if metadata:
-    config['metadata'] = metadata
-if options:
-    config['options'] = options
-for section, value in sections.items():
-    config[section] = value
-
-buf = io.StringIO()
-config.write(buf)
-
-# Convert leading tabs to spaces.
-buf = re.sub('^(\t+)', ' ' * args.dangling_list_indent, buf.getvalue(), 0, re.MULTILINE)
-print(buf)
+if __name__ == '__main__':
+    print(main())
