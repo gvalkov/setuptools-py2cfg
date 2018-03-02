@@ -15,7 +15,8 @@ from configparser import ConfigParser
 
 
 #------------------------------------------------------------------------------
-# Handle cli.
+# Handle command-line arguments.
+#------------------------------------------------------------------------------
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter, description=__doc__)
 parser.add_argument(
     '-t', '--dangling-list-threshold', default=40, metavar='int', type=int,
@@ -34,6 +35,7 @@ args = parser.parse_args()
 
 #------------------------------------------------------------------------------
 # Mock all functions in the setuptools module.
+#------------------------------------------------------------------------------
 sys.modules['setuptools'] = Mock(spec=setuptools)
 import setuptools
 
@@ -50,11 +52,20 @@ setup = setuptools.setup.call_args[1]
 
 
 #------------------------------------------------------------------------------
-# Helper functions.
-def join_lines(seq):
-    return '\n' + '\n'.join(seq)
-
+# Helper functions. Note that the names 'list-semi' and 'list-comma' come
+# from the setuptools specification and I find it easier to keep those names.
+#------------------------------------------------------------------------------
 def find_file(content):
+    '''
+    Search for a file inside the setup.py directory matching the given text.
+    Returns the original text if an exact match is not found.
+
+      >>> find_file('BSD 3-Clause License\n\nCopyright....')
+      'file: LICENSE'
+      >>> find_file('Revised BSD License')
+      'Revised BSD License'
+    '''
+
     for path in (p for p in setuppy_dir.iterdir() if p.is_file()):
         try:
             if path.read_text() == content:
@@ -63,32 +74,54 @@ def find_file(content):
             pass
     return content
 
-def list_comma(value, threshold=args.dangling_list_threshold):
-    value = value.split() if isinstance(value, str) else value
-    s = ', '.join(value)
-    return join_lines(value) if len(s) > threshold else s
+
+def join_lines(seq):
+    return '\n' + '\n'.join(seq)
+
 
 def list_semi(value, threshold=args.dangling_list_threshold):
     s = '; '.join(value)
     return join_lines(value) if len(s) > threshold else s
 
+
+def list_comma(value, threshold=args.dangling_list_threshold):
+    ''''''
+    value = value.split() if isinstance(value, str) else value
+    s = ', '.join(value)
+    return join_lines(value) if len(s) > threshold else s
+
+
 def ensure_list(value):
     return value if isinstance(value, (list, tuple)) else [value]
 
+
 def find_or_list_comma(value):
+    # If find_packages() -> 'find:', else semicolon separated list.
     return 'find:' if isinstance(value, Mock) else list_comma(value)
 
+
 def setif(src, dest, key, transform=None):
+    '''Assign value to `dest` if `key` exists in `src`, while optionally
+    applying a transformation to `src[key]`.'''
+
     if key in src:
         dest[key] = transform(src[key]) if transform else src[key]
 
+
 def extract_section(value):
+    '''
+    Join all dictionary values into a semicolon separated list.
+
+      >>> extract_section({'tests': ['pytest >= 3.0.0', 'tox >= 2.6.0']})
+      {'tests': 'tox >= 2.6.0; pytest >= 3.0.0'}
+    '''
     if isinstance(value, dict):
         return {k: list_semi(ensure_list(v)) for k, v in value.items()}
 
 
 #------------------------------------------------------------------------------
 # Metadata
+#------------------------------------------------------------------------------
 metadata = {}
 setif(setup, metadata, 'name')
 setif(setup, metadata, 'version')
@@ -112,6 +145,7 @@ setif(setup, metadata, 'obsoletes', list_comma)
 
 #------------------------------------------------------------------------------
 # Options.
+#------------------------------------------------------------------------------
 options = {}
 setif(setup, options, 'py_modules', list_comma)
 setif(setup, options, 'packages', find_or_list_comma)
@@ -135,6 +169,7 @@ setif(setup, options, 'include_package_data')
 
 #------------------------------------------------------------------------------
 # Additional sections.
+#------------------------------------------------------------------------------
 sections = defaultdict(dict)
 
 entry_points = setup.get('entry_points')
@@ -156,6 +191,7 @@ if 'exclude_package_data' in setup:
 
 #------------------------------------------------------------------------------
 # Dump and reformat sections to ini format.
+#------------------------------------------------------------------------------
 config = ConfigParser(interpolation=None)
 if metadata:
     config['metadata'] = metadata
