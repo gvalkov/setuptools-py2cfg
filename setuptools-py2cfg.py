@@ -28,6 +28,9 @@ parser.add_argument(
     '-a', '--always-use-dangling-lists', action='store_const', const=0, default=False,
     help='use dangling lists everywhere', dest='dangling_list_threshold')
 parser.add_argument(
+    '-n', '--never-use-dangling-lists', action='store_const', const=99999, default=False,
+    help='use dangling lists everywhere', dest='dangling_list_threshold')
+parser.add_argument(
     'setup_py', type=FileType('r'), default='./setup.py', nargs='?', metavar='path',
     help='path to setup.py file')
 args = parser.parse_args()
