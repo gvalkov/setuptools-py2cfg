@@ -73,7 +73,10 @@ def main(args=None):
     config.write(buf)
 
     # Convert leading tabs to spaces.
-    return re.sub('^(\t+)', ' ' * args.dangling_list_indent, buf.getvalue(), 0, re.MULTILINE)
+    res = re.sub('^(\t+)', ' ' * args.dangling_list_indent, buf.getvalue(), 0, re.MULTILINE)
+
+    # Remove trailing whitespace.
+    return re.sub(' +$', '', res, 0, re.MULTILINE)
 
 
 def py2cfg(setup, setuppy_dir, dangling_list_threshold):
