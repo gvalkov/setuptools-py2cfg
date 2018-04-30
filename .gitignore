@@ -11,3 +11,6 @@ sdist/
 
 # Sphinx documentation
 docs/_build/
+
+# Testing
+.pytest_cache

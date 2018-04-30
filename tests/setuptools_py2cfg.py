@@ -1,0 +1,1 @@
+../setuptools-py2cfg.py
