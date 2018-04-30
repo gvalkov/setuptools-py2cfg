@@ -37,7 +37,7 @@ def parseargs(args=None):
     return parser.parse_args(args)
 
 
-def execsetup(setup_py):
+def execsetup(setup_py: Path):
     # Mock all function in the setuptools module.
     global setuptools
     sys.modules['setuptools'] = Mock(spec=setuptools)
@@ -45,10 +45,10 @@ def execsetup(setup_py):
 
     # Evaluate setup.py with our mocked setuptools and get kwargs given to setup().
     cwd = Path.cwd()
-    setuppy_dir = Path(setup_py.name).parent
+    setuppy_dir = setup_py.parent
     try:
         os.chdir(str(setuppy_dir))
-        exec(setup_py.read())
+        exec(setup_py.read_text())
     finally:
         os.chdir(str(cwd))
 
@@ -57,7 +57,7 @@ def execsetup(setup_py):
 
 def main(args=None):
     args = parseargs(args)
-    setup, setuppy_dir = execsetup(args.setup_py)
+    setup, setuppy_dir = execsetup(Path(args.setup_py.name).resolve())
     metadata, options, sections = py2cfg(setup, setuppy_dir, args.dangling_list_threshold)
 
     # Dump and reformat sections to ini format.
