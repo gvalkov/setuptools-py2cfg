@@ -211,6 +211,8 @@ def extract_section(value):
     if isinstance(value, dict):
         return {k: list_semi(ensure_list(v)) for k, v in value.items()}
 
+def mainerMain():
+    print(main())
 
 if __name__ == '__main__':
-    print(main())
+    mainerMain()
