@@ -2,7 +2,7 @@ import pytest
 import textwrap
 from pathlib import Path
 
-from . import setuptools_py2cfg
+import setuptools_py2cfg
 
 
 @pytest.fixture
