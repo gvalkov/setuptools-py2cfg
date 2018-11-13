@@ -161,7 +161,6 @@ def _setup_cfg_merge_params():
     return params
 
 
-@pytest.mark.xfail
 @pytest.mark.parametrize('files, expected', _setup_cfg_merge_params())
 def test_setup_cfg_merge(files, expected, tmpdir_cwd):
     generate_package(tmpdir_cwd, files)
