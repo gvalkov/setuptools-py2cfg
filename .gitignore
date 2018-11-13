@@ -14,3 +14,4 @@ docs/_build/
 
 # Testing
 .pytest_cache
+.tox
