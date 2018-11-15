@@ -69,6 +69,15 @@ def main(args=None):
     for section, value in sections.items():
         config[section] = value
 
+    # Load the existing setup.cfg if it exists
+    setup_cfg = setuppy_dir / 'setup.cfg'
+    if setup_cfg.exists():
+        setup_cfg_parser = ConfigParser()
+        with open(setup_cfg, 'r') as f:
+            setup_cfg_parser.read_file(f)
+
+        config = merge_configs(setup_cfg_parser, config)
+
     buf = io.StringIO()
     config.write(buf)
 
@@ -210,6 +219,55 @@ def extract_section(value):
     '''
     if isinstance(value, dict):
         return {k: list_semi(ensure_list(v)) for k, v in value.items()}
+
+
+def merge_configs(cfg1, cfg2):
+    """Merges two configurations"""
+    def to_dict(cfg):
+        return {k: dict(**v) for k, v in cfg.items()}
+
+    def merge_dicts(d1, d2):
+        d_out = {}
+
+        # Get the set of all the keys between the two, trying to preserve
+        # order (in Python 3.6) to avoid scrambling the sections randomly
+        k1 = list(d1.keys())
+        k2 = list(d2.keys())
+        keys = set(d1.keys()) | set(d2.keys())
+
+        def key_order(key):
+            try:
+                return k1.index(key)
+            except ValueError:
+                return k2.index(key)
+
+        for k in sorted(keys, key=key_order):
+            # The configuration dictionaries should be mappings from str to
+            # dict, so if both keys are present, merge the dictionaries,
+            # otherwise whichever one exists.
+            v1 = d1.get(k, None)
+            v2 = d2.get(k, None)
+
+            assert not v1 or isinstance(v1, dict)
+            assert not v2 or isinstance(v2, dict)
+
+            if v1 and not v2:
+                d_out[k] = v1
+            elif v2 and not v1:
+                d_out[k] = v2
+            else:
+                d_out[k] = v1.copy()
+                d_out[k].update(v2)
+
+        return d_out
+
+    dict_merged = merge_dicts(*map(to_dict, (cfg1, cfg2)))
+
+    merged_config = ConfigParser()
+    merged_config.read_dict(dict_merged)
+
+    return merged_config
+
 
 if __name__ == '__main__':
     main()

@@ -1,8 +1,12 @@
 import pytest
 import textwrap
+import os
+
 from pathlib import Path
 
 import setuptools_py2cfg
+
+from .util import generate_package, compare_configs, configs_to_str
 
 
 @pytest.fixture
@@ -13,6 +17,12 @@ def empty_setup_py(tmpdir):
 @pytest.fixture
 def testpkg1(request):
     return Path(request.fspath.dirname, 'testpkg1')
+
+
+@pytest.fixture
+def tmpdir_cwd(tmpdir):
+    with tmpdir.as_cwd() as cwd:
+        yield tmpdir
 
 
 def test_execsetup(empty_setup_py: Path):
@@ -63,3 +73,99 @@ def test_full(testpkg1):
         readme-renderer >= 16.0
         flake8
         pep8-naming''')
+
+
+def _setup_cfg_merge_params():
+    params = [
+        # Basic
+        ({
+            'setup.py':
+            """
+            from setuptools import setup, find_packages
+
+            setup(packages=find_packages())
+            """,
+            'setup.cfg': """
+            [metadata]
+            name=foo
+            version=1.0.0
+            """,
+        },
+        {
+            'metadata': {
+                'name': 'foo',
+                'version': '1.0.0',
+            },
+            'options': {'packages': 'find:'},
+        }),
+        # Merging the "options" section
+        ({
+            'setup.py':
+            """
+            from setuptools import setup, find_packages
+
+            setup(packages=find_packages())
+            """,
+            'setup.cfg': """
+            [metadata]
+            name=foo
+            version=1.0.0
+
+            [options]
+            install_requires=python-dateutil
+            """,
+        },
+        {
+            'metadata': {
+                'name': 'foo',
+                'version': '1.0.0',
+            },
+            'options': {
+                'install_requires': 'python-dateutil',
+                'packages': 'find:',
+            }
+        }),
+        # Both add a section
+        ({
+            'setup.py':
+            """
+            from setuptools import setup
+
+            setup(extras_require={
+                'tests': ['pytest'],
+            })
+            """,
+            'setup.cfg': """
+            [metadata]
+            name=foo
+            version=1.0.0
+
+            [options]
+            install_requires=python-dateutil
+            """,
+        },
+        {
+            'metadata': {
+                'name': 'foo',
+                'version': '1.0.0',
+            },
+            'options': {
+                'install_requires': 'python-dateutil',
+            },
+            'options.extras_require': {
+                'tests': 'pytest',
+            },
+        }),
+    ]
+
+    return params
+
+
+@pytest.mark.parametrize('files, expected', _setup_cfg_merge_params())
+def test_setup_cfg_merge(files, expected, tmpdir_cwd):
+    generate_package(tmpdir_cwd, files)
+
+    res = setuptools_py2cfg.main([str(tmpdir_cwd / 'setup.py')])
+
+    assert compare_configs(res, expected), configs_to_str(res, expected)
+
