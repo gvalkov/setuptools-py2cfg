@@ -167,4 +167,4 @@ Released under the terms of the `Revised BSD License`_.
     :alt: Build status
 
 .. _`Revised BSD License`: https://raw.github.com/gvalkov/setuptools-py2cfg/master/LICENSE
-.. _`setuptools supports`: http://setuptools.readthedocs.io/en/latest/setuptools.html#configuring-setup-using-setup-cfg-files
+.. _`setuptools supports`: https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
