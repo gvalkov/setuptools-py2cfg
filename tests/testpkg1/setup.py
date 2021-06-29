@@ -46,9 +46,13 @@ kw = {
     'keywords':             'ansi terminal markup',
     'url':                  'https://github.com/gvalkov/python-ansimarkup',
     'classifiers':          classifiers,
+    'project_urls':         {'Repo': 'https://github.com/gvalkov/setuptools-py2cfg'},
+
     'install_requires':     install_requires,
     'extras_require':       extras_require,
-    'packages':             find_packages(),
+    'package_dir':          {'': 'src1', 'a': "src2"},
+    'packages':             find_packages(where='src1', exclude=("tests", "unneeded")),
+    'test_suite':           'tests.test',
     'zip_safe':             True,
 }
 

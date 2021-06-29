@@ -56,11 +56,21 @@ def test_full(testpkg1):
         Intended Audience :: Developers
         Topic :: Software Development :: Libraries
         License :: OSI Approved :: BSD License
+    project_urls =
+        Repo = https://github.com/gvalkov/setuptools-py2cfg
 
     [options]
+    package_dir =
+         = src1
+        a = src2
     packages = find:
     zip_safe = True
     install_requires = colorama
+    test_suite = tests.test
+
+    [options.packages.find]
+    where = src1
+    exclude = tests; unneeded
 
     [options.extras_require]
     tests =
