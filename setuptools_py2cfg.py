@@ -55,10 +55,9 @@ def execsetup(setup_py: Path):
     return setuptools.setup.call_args[1], setuppy_dir
 
 
-def main(args=None):
-    args = parseargs(args)
-    setup, setuppy_dir = execsetup(Path(args.setup_py.name).resolve())
-    metadata, options, sections = py2cfg(setup, setuppy_dir, args.dangling_list_threshold)
+def process(setup_py, dangling_list_threshold, dangling_list_indent):
+    setup, setuppy_dir = execsetup(Path(setup_py.name).resolve())
+    metadata, options, sections = py2cfg(setup, setuppy_dir, dangling_list_threshold)
 
     # Dump and reformat sections to ini format.
     config = ConfigParser(interpolation=None)
@@ -82,11 +81,18 @@ def main(args=None):
     config.write(buf)
 
     # Convert leading tabs to spaces.
-    res = re.sub('^(\t+)', ' ' * args.dangling_list_indent, buf.getvalue(), 0, re.MULTILINE)
+    res = re.sub('^(\t+)', ' ' * dangling_list_indent, buf.getvalue(), 0, re.MULTILINE)
 
     # Remove trailing whitespace.
     res = re.sub(' +$', '', res, 0, re.MULTILINE)
     return res.rstrip()
+
+
+def main(args=None):
+    args = parseargs(args)
+    res = process(setup_py=args.setup_py, dangling_list_threshold=args.dangling_list_threshold, dangling_list_indent=args.dangling_list_indent)
+    print(res)
+    return
 
 
 def py2cfg(setup, setuppy_dir, dangling_list_threshold):
