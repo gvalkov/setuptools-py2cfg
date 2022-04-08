@@ -33,7 +33,7 @@ def test_execsetup(empty_setup_py: Path):
 
 
 def test_full(testpkg1):
-    res = setuptools_py2cfg.main([str(testpkg1 / 'setup.py')])
+    res = setuptools_py2cfg._main([str(testpkg1 / 'setup.py')])
     assert res == textwrap.dedent('''\
     [metadata]
     name = ansimarkup
@@ -165,7 +165,7 @@ def _setup_cfg_merge_params():
 def test_setup_cfg_merge(files, expected, tmpdir_cwd):
     generate_package(tmpdir_cwd, files)
 
-    res = setuptools_py2cfg.main([str(tmpdir_cwd / 'setup.py')])
+    res = setuptools_py2cfg._main([str(tmpdir_cwd / 'setup.py')])
 
     assert compare_configs(res, expected), configs_to_str(res, expected)
 

@@ -15,7 +15,7 @@ from unittest.mock import Mock
 from configparser import ConfigParser
 
 
-def parseargs(args=None):
+def parseargs(cli_args=None):
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter, description=__doc__)
 
     parser.add_argument(
@@ -34,7 +34,7 @@ def parseargs(args=None):
         'setup_py', type=FileType('r'), default='./setup.py', nargs='?', metavar='path',
         help='path to setup.py file')
 
-    return parser.parse_args(args)
+    return parser.parse_args(cli_args)
 
 
 def execsetup(setup_py: Path):
@@ -55,8 +55,13 @@ def execsetup(setup_py: Path):
     return setuptools.setup.call_args[1], setuppy_dir
 
 
-def main(args=None):
-    args = parseargs(args)
+def main(cli_args=None):
+    # Wrap _main() to test the output And avoid printing to stderr when running from the cli.
+    print(_main(cli_args))
+
+
+def _main(cli_args=None):
+    args = parseargs(cli_args)
     setup, setuppy_dir = execsetup(Path(args.setup_py.name).resolve())
     metadata, options, sections = py2cfg(setup, setuppy_dir, args.dangling_list_threshold)
 
