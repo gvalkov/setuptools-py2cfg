@@ -44,10 +44,15 @@ def execsetup(setup_py: Path):
     sys.modules['setuptools'] = Mock(spec=setuptools)
     import setuptools
 
+    cwd = Path.cwd()
     # Evaluate setup.py with our mocked setuptools and get kwargs given to setup().
-    #   runpy imports the file as a module and mocks it as __main__
-    #   Reason : A lot of setup.py use __file__ and __name__ == "__main__"
-    runpy.run_path(setup_py, {}, "__main__")
+    try:
+        os.chdir(str(setup_py.parent))
+        #   runpy imports the file as a module and mocks it as __main__
+        #   Reason : A lot of setup.py use __file__ and __name__ == "__main__"
+        runpy.run_path(setup_py, {}, "__main__")
+    finally:
+        os.chdir(str(cwd))
 
     # Retrieve the arguments given to setup() in the target setup.py
     return setuptools.setup.call_args[1]
