@@ -27,9 +27,8 @@ def tmpdir_cwd(tmpdir):
 
 def test_execsetup(empty_setup_py: Path):
     empty_setup_py.write_text('from setuptools import setup; setup(a=1, b=2, c=3)')
-    args, setup_dir = setuptools_py2cfg.execsetup(empty_setup_py)
+    args = setuptools_py2cfg.execsetup(empty_setup_py)
     assert args == {'a': 1, 'b': 2, 'c': 3}
-    assert setup_dir == empty_setup_py.parent
 
 
 def test_full(testpkg1):
