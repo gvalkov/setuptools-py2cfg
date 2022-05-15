@@ -16,7 +16,7 @@ from configparser import ConfigParser
 import runpy
 
 
-def parseargs(args=None):
+def parseargs(cli_args=None):
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter, description=__doc__)
 
     parser.add_argument(
@@ -35,7 +35,7 @@ def parseargs(args=None):
         'setup_py', type=FileType('r'), default='./setup.py', nargs='?', metavar='path',
         help='path to setup.py file')
 
-    return parser.parse_args(args)
+    return parser.parse_args(cli_args)
 
 
 def execsetup(setup_py: Path):
@@ -58,8 +58,13 @@ def execsetup(setup_py: Path):
     return setuptools.setup.call_args[1]
 
 
-def main(args=None):
-    args = parseargs(args)
+def main(cli_args=None):
+    # Wrap _main() to test the output And avoid printing to stderr when running from the cli.
+    print(_main(cli_args))
+
+
+def _main(cli_args=None):
+    args = parseargs(cli_args)
     setup_py = Path(args.setup_py.name).resolve()
     setuppy_dir = setup_py.parent
     setup_call_args = execsetup(setup_py)
