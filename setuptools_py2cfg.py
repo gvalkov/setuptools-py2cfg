@@ -13,6 +13,7 @@ from functools import partial
 from collections import defaultdict
 from unittest.mock import Mock
 from configparser import ConfigParser
+import runpy
 
 
 def parseargs(args=None):
@@ -43,22 +44,26 @@ def execsetup(setup_py: Path):
     sys.modules['setuptools'] = Mock(spec=setuptools)
     import setuptools
 
-    # Evaluate setup.py with our mocked setuptools and get kwargs given to setup().
     cwd = Path.cwd()
-    setuppy_dir = setup_py.parent
+    # Evaluate setup.py with our mocked setuptools and get kwargs given to setup().
     try:
-        os.chdir(str(setuppy_dir))
-        exec(setup_py.read_text())
+        os.chdir(str(setup_py.parent))
+        #   runpy imports the file as a module and mocks it as __main__
+        #   Reason : A lot of setup.py use __file__ and __name__ == "__main__"
+        runpy.run_path(setup_py, {}, "__main__")
     finally:
         os.chdir(str(cwd))
 
-    return setuptools.setup.call_args[1], setuppy_dir
+    # Retrieve the arguments given to setup() in the target setup.py
+    return setuptools.setup.call_args[1]
 
 
 def main(args=None):
     args = parseargs(args)
-    setup, setuppy_dir = execsetup(Path(args.setup_py.name).resolve())
-    metadata, options, sections = py2cfg(setup, setuppy_dir, args.dangling_list_threshold)
+    setup_py = Path(args.setup_py.name).resolve()
+    setuppy_dir = setup_py.parent
+    setup_call_args = execsetup(setup_py)
+    metadata, options, sections = py2cfg(setup_call_args, setuppy_dir, args.dangling_list_threshold)
 
     # Dump and reformat sections to ini format.
     config = ConfigParser(interpolation=None)
