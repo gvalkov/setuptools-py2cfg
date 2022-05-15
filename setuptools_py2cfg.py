@@ -101,10 +101,14 @@ def _main(cli_args=None):
 
 def py2cfg(setup, setuppy_dir, dangling_list_threshold):
     # Wrap these functions for convenience.
-    global find_file, list_comma, list_semi
+    global find_file, list_comma, list_semi, find_or_list_comma
     find_file = partial(find_file, setuppy_dir=setuppy_dir)
     list_comma = partial(list_comma, threshold=dangling_list_threshold)
     list_semi = partial(list_semi, threshold=dangling_list_threshold)
+
+    sections = defaultdict(dict)
+
+    find_or_list_comma = partial(find_or_list_comma, sections=sections, threshold=dangling_list_threshold)
 
     metadata = {}
     setif(setup, metadata, 'name')
@@ -125,8 +129,10 @@ def py2cfg(setup, setuppy_dir, dangling_list_threshold):
     setif(setup, metadata, 'provides', list_comma)
     setif(setup, metadata, 'requires', list_comma)
     setif(setup, metadata, 'obsoletes', list_comma)
+    setif(setup, metadata, 'project_urls', mapping)
 
     options = {}
+    setif(setup, options, 'package_dir', mapping)
     setif(setup, options, 'py_modules', list_comma)
     setif(setup, options, 'packages', find_or_list_comma)
     setif(setup, options, 'zip_safe')
@@ -141,12 +147,11 @@ def py2cfg(setup, setuppy_dir, dangling_list_threshold):
     setif(setup, options, 'scripts', list_comma)
     setif(setup, options, 'eager_resources', list_comma)
     setif(setup, options, 'dependency_links', list_comma)
+    setif(setup, options, 'test_suite')
     setif(setup, options, 'tests_require', list_semi)
     setif(setup, options, 'include_package_data')
     setif(setup, options, 'namespace_packages', list_comma)
     setif(setup, options, 'include_package_data')
-
-    sections = defaultdict(dict)
 
     entry_points = setup.get('entry_points')
     if entry_points:
@@ -196,20 +201,34 @@ def list_semi(value, threshold):
     return join_lines(value) if len(s) > threshold else s
 
 
-def list_comma(value, threshold):
+def mapping(value):
+    return join_lines('\t' * 2 + k + " = " + v for k, v in value.items())
+
+
+def list_comma_orig(value, threshold):
     ''''''
     value = value.split() if isinstance(value, str) else value
     s = ', '.join(value)
     return join_lines(value) if len(s) > threshold else s
+
+list_comma = list_comma_orig
 
 
 def ensure_list(value):
     return value if isinstance(value, (list, tuple)) else [value]
 
 
-def find_or_list_comma(value):
+def find_or_list_comma(value, threshold, sections):
     # If find_packages() -> 'find:', else semicolon separated list.
-    return 'find:' if isinstance(value, Mock) else list_comma(value)
+    if isinstance(value, Mock):
+        call = setuptools.find_packages.call_args
+        args, findSection = list(call)
+        if findSection:
+            sections['options.packages.find'] = extract_section(findSection)
+
+        return 'find:'
+
+    return list_comma_orig(value, threshold)
 
 
 def setif(src, dest, key, transform=None):
