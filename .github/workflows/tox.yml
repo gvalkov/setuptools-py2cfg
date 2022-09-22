@@ -9,4 +9,4 @@ jobs:
         with:
           python-version: 3.x
       - run: pip install tox
-      - run: tox -e docs
+      - run: tox -e py
