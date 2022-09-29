@@ -1,3 +1,32 @@
 [build-system]
-requires = ["setuptools>=36", "wheel"]
+requires = ["setuptools>=61.2.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "setuptools-py2cfg"
+version = "2.0.0"
+authors = [{name = "Georgi Valkov", email = "georgi.t.valkov@gmail.com"}]
+license = {text = "Revised BSD License"}
+description = "Convert a setuptools setup.py to a setup.cfg"
+readme = "README.rst"
+keywords = ["setuptools", "setup.cfg"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+]
+requires-python = ">=3.3"
+
+[project.urls]
+Homepage = "https://github.com/gvalkov/setuptools-py2cfg"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+setuptools-py2cfg = "setuptools_py2cfg:main"
+
+[tool.setuptools]
+zip-safe = true
+py-modules = ["setuptools_py2cfg"]
