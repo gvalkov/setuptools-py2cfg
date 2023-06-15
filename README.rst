@@ -3,7 +3,7 @@ setuptools-py2cfg
 
 .. class:: no-web no-pdf
 
-|pypi| |build| |license|
+|pypi| |license|
 
 Since version 30.3.0, `setuptools supports`_ declarative configuration through the
 ``setup.cfg`` file. This script helps convert existing ``setup.py`` files to
@@ -161,10 +161,6 @@ Released under the terms of the `Revised BSD License`_.
 .. |license| image:: https://img.shields.io/pypi/l/setuptools-py2cfg.svg?style=flat-square&label=license
     :target: https://pypi.python.org/pypi/setuptools-py2cfg
     :alt: BSD 3-Clause
-
-.. |build| image:: https://img.shields.io/travis/gvalkov/setuptools-py2cfg/master.svg?style=flat-square&label=build
-    :target: http://travis-ci.org/gvalkov/python-setuptools-py2cfg
-    :alt: Build status
 
 .. _`Revised BSD License`: https://raw.github.com/gvalkov/setuptools-py2cfg/master/LICENSE
 .. _`setuptools supports`: https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
