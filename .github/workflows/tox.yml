@@ -8,5 +8,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
-      - run: pip install tox
+      - run: pip install setuptools tox
       - run: tox -e py
