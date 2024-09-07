@@ -217,7 +217,7 @@ def find_file(content, setuppy_dir):
         try:
             if path.read_text() == content:
                 return "file: %s" % path.name
-        except:
+        except Exception:
             pass
     return content
 
