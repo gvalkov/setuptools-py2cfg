@@ -8,19 +8,13 @@ import textwrap
 
 from typing import Dict, Union, Any, Tuple
 
-_CONFIG_FROM = Union[
-    str,
-    Path,
-    io.IOBase,
-    Dict[str, Dict[str, Any]],
-    ConfigParser
-]
+_CONFIG_FROM = Union[str, Path, io.IOBase, Dict[str, Dict[str, Any]], ConfigParser]
 
 
-__all__ = ['generate_package', 'compare_configs', 'configs_to_str']
+__all__ = ["generate_package", "compare_configs", "configs_to_str"]
 
 
-def generate_package(root_path: Path, files: Dict[Union[str,Path], str]):
+def generate_package(root_path: Path, files: Dict[Union[str, Path], str]):
     """
     Given a root path and a dictionary mapping relative file paths to their
     contents, create the file hierarchy
@@ -28,7 +22,7 @@ def generate_package(root_path: Path, files: Dict[Union[str,Path], str]):
     for rel_path, contents in files.items():
         fpath = root_path / rel_path
 
-        with open(fpath, 'w') as f:
+        with open(fpath, "w") as f:
             f.write(textwrap.dedent(contents))
 
 
@@ -53,11 +47,13 @@ def _config_to_str(cfg: ConfigParser) -> str:
 def _to_config(cfg):
     raise ValueError(f"Cannot convert to config file: {cfg!r}")
 
+
 @_to_config.register(dict)
 def _(cfg):
     cfg_out = ConfigParser()
     cfg_out.read_dict(cfg)
     return cfg_out
+
 
 @_to_config.register(str)
 def _(cfg):
@@ -67,7 +63,7 @@ def _(cfg):
 
 @_to_config.register(Path)
 def _(cfg):
-    with open(cfg, 'r') as f:
+    with open(cfg, "r") as f:
         return _to_config(f)
 
 
@@ -82,4 +78,3 @@ def _(cfg):
 @_to_config.register(ConfigParser)
 def _(cfg):
     return cfg
-
