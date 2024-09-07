@@ -41,7 +41,7 @@ def parseargs(cli_args=None):
 def execsetup(setup_py: Path):
     # Mock all function in the setuptools module.
     global setuptools
-    sys.modules['setuptools'] = Mock(spec=setuptools)
+    sys.modules['setuptools'] = Mock(autospec=setuptools)
     import setuptools
 
     cwd = Path.cwd()
